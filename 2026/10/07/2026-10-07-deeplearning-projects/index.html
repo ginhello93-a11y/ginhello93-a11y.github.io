@@ -1,0 +1,287 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>两个深度学习小实践：遥感变化检测 &amp; 手写数字识别 | Hexo</title><meta name="author" content="John Doe"><meta name="copyright" content="John Doe"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="这学期跟着课程完整跑了两个深度学习项目：一个是遥感影像的变化检测，一个是经典的 MNIST 手写数字识别。模型代码都是老师提供的现成工程，我没有从零写网络，主要是把环境配好、数据放对，把训练、评估、可视化整条流程在自己机器上跑通一遍。这里记录一下过程。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="两个深度学习小实践：遥感变化检测 &amp; 手写数字识别">
+<meta property="og:url" content="https://ginhello93-a11y.github.io/2026/10/07/2026-10-07-deeplearning-projects/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="这学期跟着课程完整跑了两个深度学习项目：一个是遥感影像的变化检测，一个是经典的 MNIST 手写数字识别。模型代码都是老师提供的现成工程，我没有从零写网络，主要是把环境配好、数据放对，把训练、评估、可视化整条流程在自己机器上跑通一遍。这里记录一下过程。">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://ginhello93-a11y.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-10-07T14:30:00.000Z">
+<meta property="article:modified_time" content="2026-10-07T01:30:04.559Z">
+<meta property="article:author" content="John Doe">
+<meta property="article:tag" content="MNIST">
+<meta property="article:tag" content="PyTorch">
+<meta property="article:tag" content="变化检测">
+<meta property="article:tag" content="深度学习">
+<meta property="article:tag" content="遥感图像">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://ginhello93-a11y.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "两个深度学习小实践：遥感变化检测 & 手写数字识别",
+  "url": "https://ginhello93-a11y.github.io/2026/10/07/2026-10-07-deeplearning-projects/",
+  "image": "https://ginhello93-a11y.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-10-07T14:30:00.000Z",
+  "dateModified": "2026-10-07T01:30:04.559Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "John Doe",
+      "url": "https://ginhello93-a11y.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="https://ginhello93-a11y.github.io/2026/10/07/2026-10-07-deeplearning-projects/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '两个深度学习小实践：遥感变化检测 & 手写数字识别',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 8.1.1"></head><body><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">Hexo</span></a><a class="nav-page-title" href="/"><span class="site-name">两个深度学习小实践：遥感变化检测 &amp; 手写数字识别</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"></div></nav><div id="post-info"><h1 class="post-title">两个深度学习小实践：遥感变化检测 &amp; 手写数字识别</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-10-07T14:30:00.000Z" title="Created 2026-10-07 22:30:00">2026-10-07</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-10-07T01:30:04.559Z" title="Updated 2026-10-07 09:30:04">2026-10-07</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%AD%A6%E4%B9%A0%E8%AE%B0%E5%BD%95/">学习记录</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><p>这学期跟着课程完整跑了两个深度学习项目：一个是遥感影像的<strong>变化检测</strong>，一个是经典的 <strong>MNIST 手写数字识别</strong>。模型代码都是老师提供的现成工程，我没有从零写网络，主要是把环境配好、数据放对，把训练、评估、可视化整条流程在自己机器上跑通一遍。这里记录一下过程。</p>
+<span id="more"></span>
+
+<h2 id="一、遥感变化检测：SNUNet-CD"><a href="#一、遥感变化检测：SNUNet-CD" class="headerlink" title="一、遥感变化检测：SNUNet-CD"></a>一、遥感变化检测：SNUNet-CD</h2><h3 id="1-任务是什么"><a href="#1-任务是什么" class="headerlink" title="1. 任务是什么"></a>1. 任务是什么</h3><p>变化检测（Change Detection）就是给你同一地区<strong>两个不同时相</strong>的遥感影像（T1、T2），让模型标出”哪些地方发生了变化”。它在城市扩张监测、灾害评估、土地利用调查里用得很多。</p>
+<p>课程给的工程是 <strong>SNUNet-CD</strong>（Siam-NestedUNet），出自论文 <em>SNUNet-CD: A Densely Connected Siamese Network for Change Detection of VHR Images</em>（IEEE GRSL 2021）。它的核心思路是：</p>
+<ul>
+<li><strong>孪生（Siamese）结构</strong>：T1、T2 两幅图共享同一套权重各自提特征；</li>
+<li><strong>UNet++ 密集连接</strong>：把嵌套、密集跳跃连接融进编解码结构，让深浅层特征融合得更好；</li>
+<li>最后输出一张和原图等大的二值图，白色代表”变化”，黑色代表”未变化”。</li>
+</ul>
+<h3 id="2-网络结构"><a href="#2-网络结构" class="headerlink" title="2. 网络结构"></a>2. 网络结构</h3><p><img src="/images/snunet-arch.png" alt="SNUNet 网络结构"></p>
+<p>整个网络是一个全卷积的编解码结构，左侧是双分支的共享编码器，右侧逐级上采样恢复分辨率，并用密集跳跃连接把对应层的特征拼回去。</p>
+<h3 id="3-数据集与训练配置"><a href="#3-数据集与训练配置" class="headerlink" title="3. 数据集与训练配置"></a>3. 数据集与训练配置</h3><p>用的是 CDD（Change Detection Dataset）的一个子集，按 <code>train / val / test</code> 划分。关键配置如下：</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>设置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>输入裁剪</td>
+<td>256 × 256</td>
+</tr>
+<tr>
+<td>batch size</td>
+<td>2</td>
+</tr>
+<tr>
+<td>初始学习率</td>
+<td>1e-3</td>
+</tr>
+<tr>
+<td>训练轮数</td>
+<td>100 epoch</td>
+</tr>
+<tr>
+<td>损失函数</td>
+<td>hybrid（BCE + Dice 类混合损失）</td>
+</tr>
+<tr>
+<td>GPU</td>
+<td>单卡</td>
+</tr>
+</tbody></table>
+<h3 id="4-实验结果"><a href="#4-实验结果" class="headerlink" title="4. 实验结果"></a>4. 实验结果</h3><p>在验证集上跑满 100 个 epoch 后，主要指标大致是：</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>数值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>OA（总体精度）</td>
+<td><strong>98.31%</strong></td>
+</tr>
+<tr>
+<td>Precision</td>
+<td>75.59%</td>
+</tr>
+<tr>
+<td>Recall</td>
+<td>71.19%</td>
+</tr>
+<tr>
+<td>F1-score</td>
+<td><strong>72.05%</strong></td>
+</tr>
+<tr>
+<td>验证损失</td>
+<td>0.317</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>说明：因为变化区域在整张图里占比很小，类别极度不平衡，所以即使 OA 接近 98%，F1 也只有 72% 左右——单看 OA 会高估效果，做这类任务一定要盯 F1 和 Recall。</p>
+</blockquote>
+<h3 id="5-可视化效果"><a href="#5-可视化效果" class="headerlink" title="5. 可视化效果"></a>5. 可视化效果</h3><p>下面是模型在测试集上输出的变化掩码（白色为检出的变化区域）：</p>
+<p><img src="/images/cd-result-1.png" alt="变化检测结果 1"></p>
+<p><img src="/images/cd-result-2.png" alt="变化检测结果 2"></p>
+<p><img src="/images/cd-result-3.png" alt="变化检测结果 3"></p>
+<p>可以看到，成片新建建筑的轮廓被比较完整地检了出来。中间也有一些孤立的噪点（把没变化的地方误判成变化），后面如果要继续做，可以从后处理（形态学开&#x2F;闭运算）或者换更平衡的损失函数入手。</p>
+<h3 id="6-训练入口"><a href="#6-训练入口" class="headerlink" title="6. 训练入口"></a>6. 训练入口</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># train.py 关键片段</span></span><br><span class="line">model = SNUNet(arch=arch, input_channel=<span class="number">3</span>, output_channel=<span class="number">1</span>)</span><br><span class="line">optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> epoch <span class="keyword">in</span> <span class="built_in">range</span>(args.epochs):</span><br><span class="line">    <span class="keyword">for</span> A, B, mask <span class="keyword">in</span> train_loader:</span><br><span class="line">        pred = model(A, B)</span><br><span class="line">        loss = loss_fn(pred, mask)</span><br><span class="line">        optimizer.zero_grad()</span><br><span class="line">        loss.backward()</span><br><span class="line">        optimizer.step()</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="二、手写数字识别：MNIST"><a href="#二、手写数字识别：MNIST" class="headerlink" title="二、手写数字识别：MNIST"></a>二、手写数字识别：MNIST</h2><h3 id="1-任务是什么-1"><a href="#1-任务是什么-1" class="headerlink" title="1. 任务是什么"></a>1. 任务是什么</h3><p>这个就经典了——给一张 28×28 的灰度手写数字图，模型判断它是 0～9 中的哪一个。虽然简单，但把数据划分、网络搭建、训练、评估整条链路走一遍，理解会扎实很多。</p>
+<h3 id="2-网络结构-1"><a href="#2-网络结构-1" class="headerlink" title="2. 网络结构"></a>2. 网络结构</h3><p>就是一个三层全连接网络：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable language_">self</span>.linear_relu_stack = nn.Sequential(</span><br><span class="line">    nn.Flatten(),</span><br><span class="line">    nn.Linear(<span class="number">28</span> * <span class="number">28</span>, <span class="number">312</span>),</span><br><span class="line">    nn.ReLU(),</span><br><span class="line">    nn.Linear(<span class="number">312</span>, <span class="number">256</span>),</span><br><span class="line">    nn.ReLU(),</span><br><span class="line">    nn.Linear(<span class="number">256</span>, <span class="number">10</span>),</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+
+<p>配置：batch size &#x3D; 320，训练 20 个 epoch，优化器 Adam（lr&#x3D;2e-5），损失用 CrossEntropyLoss。从训练集里单独留出 1000 张图片<strong>只用于测试、不参与训练</strong>，避免”自欺欺人”。</p>
+<h3 id="3-抽样验证"><a href="#3-抽样验证" class="headerlink" title="3. 抽样验证"></a>3. 抽样验证</h3><p>训练完后，从测试集随机抽 10 张图做预测，标题绿色代表预测正确、红色代表错误：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">with</span> torch.inference_mode():</span><br><span class="line">    predictions = model(test_batch).argmax(dim=<span class="number">1</span>).cpu().numpy()</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">第 01 张：真实数字 = 7，预测数字 = 7（正确）</span><br><span class="line">第 02 张：真实数字 = 2，预测数字 = 2（正确）</span><br><span class="line">第 03 张：真实数字 = 1，预测数字 = 1（正确）</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-额外的收获：从零手写一个网络"><a href="#4-额外的收获：从零手写一个网络" class="headerlink" title="4. 额外的收获：从零手写一个网络"></a>4. 额外的收获：从零手写一个网络</h3><p>除了直接调 PyTorch，我还在 <code>自定义nn/</code> 目录里<strong>不依赖框架</strong>，自己实现了一套最小的神经网络：</p>
+<ul>
+<li><code>layer.py</code> &#x2F; <code>model.py</code>：全连接层的前向传播；</li>
+<li><code>loss.py</code>：交叉熵损失；</li>
+<li><code>structured_param.py</code>：参数管理；</li>
+<li><code>optimizer.py</code>：SGD&#x2F;Adam 式更新；</li>
+<li><code>maths.py</code> &#x2F; <code>initializer.py</code>：激活函数、参数初始化；</li>
+<li>关键是自己手写了<strong>反向传播的梯度推导</strong>。</li>
+</ul>
+<p>这部分不追求精度，主要是把”前向算输出 → 反向算梯度 → 优化器更新参数”这条链路亲手写一遍，对反向传播的理解比直接调 <code>loss.backward()</code> 清楚多了。</p>
+<hr>
+<h2 id="三、小结：这套代码是怎么跑起来的"><a href="#三、小结：这套代码是怎么跑起来的" class="headerlink" title="三、小结：这套代码是怎么跑起来的"></a>三、小结：这套代码是怎么跑起来的</h2><p>两个项目都是老师给的现成工程，我没有从头写模型，主要工作是把环境搭好、数据放对、把流程跑通。关键步骤记录如下：</p>
+<ol>
+<li><strong>环境准备</strong>：装好 Python 3.10、带 CUDA 的 PyTorch，以及 <code>opencv-python</code>、<code>tqdm</code>、<code>tensorboardX</code>、<code>scikit-learn</code> 这些依赖；</li>
+<li><strong>数据就位</strong>：遥感把 CDD 子集按 <code>CDData/subset/{train,val,test}</code> 的目录结构放好；MNIST 直接用工程里带的 <code>.npy</code> 数据文件；</li>
+<li><strong>改配置</strong>：在 <code>utils/parser.py</code>（或命令行参数）里改好数据路径、patch size、batch size、训练轮数；</li>
+<li><strong>训练</strong>：<code>python train.py</code> 开跑；中途断点可以用 <code>resume_train.py</code> 从最近的 checkpoint 接着训；</li>
+<li><strong>出结果</strong>：<code>python eval.py</code> 算 Precision &#x2F; Recall &#x2F; F1 &#x2F; OA，<code>python visualization.py</code> 把预测掩码输出到 <code>output_img/</code>。</li>
+</ol>
+<p>过程里踩的坑也记一下：</p>
+<ul>
+<li>遥感那个训练到后期 <code>torch.save</code> 报磁盘写入失败，是 <code>tmp/</code> 里堆了太多 epoch checkpoint 把 C 盘塞满了，及时清理即可；</li>
+<li>变化检测正负样本极不平衡，别看 OA，要盯 F1；</li>
+<li>MNIST 单独留出 1000 张测试集不参与训练，否则准确率会虚高。</li>
+</ul>
+<p>整体跑下来最大的收获不是调模型，而是把”数据 → 训练 → 评估 → 可视化”这条链路在自己机器上完整走了一遍。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="https://ginhello93-a11y.github.io">John Doe</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="https://ginhello93-a11y.github.io/2026/10/07/2026-10-07-deeplearning-projects/">https://ginhello93-a11y.github.io/2026/10/07/2026-10-07-deeplearning-projects/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles on this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless otherwise stated.</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/">深度学习</a><a class="post-meta__tags" href="/tags/PyTorch/">PyTorch</a><a class="post-meta__tags" href="/tags/%E9%81%A5%E6%84%9F%E5%9B%BE%E5%83%8F/">遥感图像</a><a class="post-meta__tags" href="/tags/%E5%8F%98%E5%8C%96%E6%A3%80%E6%B5%8B/">变化检测</a><a class="post-meta__tags" href="/tags/MNIST/">MNIST</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/2025/12/03/ctfshow%E5%86%99%E9%A2%98%E8%AE%B0%E5%BD%95/" title="ctfshow写题记录"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">Next</div><div class="info-item-2">ctfshow写题记录</div></div><div class="info-2"><div class="info-item-1">这是最近ctfshow的写题记录，收获颇多。  </div></div></div></a></nav></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">John Doe</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">4</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">7</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">2</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/xxxxxx"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E9%81%A5%E6%84%9F%E5%8F%98%E5%8C%96%E6%A3%80%E6%B5%8B%EF%BC%9ASNUNet-CD"><span class="toc-number">1.</span> <span class="toc-text">一、遥感变化检测：SNUNet-CD</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E4%BB%BB%E5%8A%A1%E6%98%AF%E4%BB%80%E4%B9%88"><span class="toc-number">1.1.</span> <span class="toc-text">1. 任务是什么</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E7%BD%91%E7%BB%9C%E7%BB%93%E6%9E%84"><span class="toc-number">1.2.</span> <span class="toc-text">2. 网络结构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E6%95%B0%E6%8D%AE%E9%9B%86%E4%B8%8E%E8%AE%AD%E7%BB%83%E9%85%8D%E7%BD%AE"><span class="toc-number">1.3.</span> <span class="toc-text">3. 数据集与训练配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E5%AE%9E%E9%AA%8C%E7%BB%93%E6%9E%9C"><span class="toc-number">1.4.</span> <span class="toc-text">4. 实验结果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-%E5%8F%AF%E8%A7%86%E5%8C%96%E6%95%88%E6%9E%9C"><span class="toc-number">1.5.</span> <span class="toc-text">5. 可视化效果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-%E8%AE%AD%E7%BB%83%E5%85%A5%E5%8F%A3"><span class="toc-number">1.6.</span> <span class="toc-text">6. 训练入口</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E6%89%8B%E5%86%99%E6%95%B0%E5%AD%97%E8%AF%86%E5%88%AB%EF%BC%9AMNIST"><span class="toc-number">2.</span> <span class="toc-text">二、手写数字识别：MNIST</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E4%BB%BB%E5%8A%A1%E6%98%AF%E4%BB%80%E4%B9%88-1"><span class="toc-number">2.1.</span> <span class="toc-text">1. 任务是什么</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E7%BD%91%E7%BB%9C%E7%BB%93%E6%9E%84-1"><span class="toc-number">2.2.</span> <span class="toc-text">2. 网络结构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E6%8A%BD%E6%A0%B7%E9%AA%8C%E8%AF%81"><span class="toc-number">2.3.</span> <span class="toc-text">3. 抽样验证</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E9%A2%9D%E5%A4%96%E7%9A%84%E6%94%B6%E8%8E%B7%EF%BC%9A%E4%BB%8E%E9%9B%B6%E6%89%8B%E5%86%99%E4%B8%80%E4%B8%AA%E7%BD%91%E7%BB%9C"><span class="toc-number">2.4.</span> <span class="toc-text">4. 额外的收获：从零手写一个网络</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%B0%8F%E7%BB%93%EF%BC%9A%E8%BF%99%E5%A5%97%E4%BB%A3%E7%A0%81%E6%98%AF%E6%80%8E%E4%B9%88%E8%B7%91%E8%B5%B7%E6%9D%A5%E7%9A%84"><span class="toc-number">3.</span> <span class="toc-text">三、小结：这套代码是怎么跑起来的</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/10/07/2026-10-07-deeplearning-projects/" title="两个深度学习小实践：遥感变化检测 &amp; 手写数字识别">两个深度学习小实践：遥感变化检测 &amp; 手写数字识别</a><time datetime="2026-10-07T14:30:00.000Z" title="Created 2026-10-07 22:30:00">2026-10-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2025/12/03/ctfshow%E5%86%99%E9%A2%98%E8%AE%B0%E5%BD%95/" title="ctfshow写题记录">ctfshow写题记录</a><time datetime="2025-12-03T14:22:56.000Z" title="Created 2025-12-03 22:22:56">2025-12-03</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2025/11/26/post-title-1/" title="我的第一篇博客">我的第一篇博客</a><time datetime="2025-11-26T12:41:14.000Z" title="Created 2025-11-26 20:41:14">2025-11-26</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2025/11/11/hello-world/" title="Hello World">Hello World</a><time datetime="2025-11-11T12:38:48.818Z" title="Created 2025-11-11 20:38:48">2025-11-11</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By John Doe</span><span class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.2</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Reading Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table of Contents"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.2"></script><script src="/js/main.js?v=5.5.2"></script><div class="js-pjax"></div><script async data-pjax src="/"></script></div></body></html>
